@@ -63,6 +63,48 @@ def adminLogin():
     except Exception as e:
         return {"error": str(e)}, 500
 
+#Fraud transaction detection api
+transaction_fraud_detection = pickle.load(open('transaction_fraud_detection.pkl','rb'))
+@app.route('/api/model/fraudTransactionPrediction',methods=['POST','GET'])
+def transactionPrediction():
+    data = request.get_json()
+    array_data = data.get('array_data', [])
+    array_data_2d = np.array(array_data).reshape(1, -1)
+    # [step	amount,	oldbalanceOrg,	newbalanceOrig,	oldbalanceDest,	newbalanceDest,	orig_diff,	dest_diff,	surge,	freq_dest,	type__CASH_IN,	type__CASH_OUT,	type__DEBIT,	type__PAYMENT,	type__TRANSFER,	customers_org,	customers_des]
+    prediction = transaction_fraud_detection.predict_proba(array_data_2d)
+    output = '{0:.{1}f}'.format(prediction[0][1],2)
+    if output == 0:
+        
+        return("Not Fraud")
+    else:
+        return("Fraud")
+
+
+#Save transaction to system database
+@app.route('/api/insertSystemTransactions', methods=['POST'])
+def create_fraud_transaction():
+    data = request.get_json()
+    query = """
+        INSERT INTO system_transaction (
+            transactionid, tansactiontype, oldbalanceorg,
+            newbalanceorig, oldbalancedest, newbalancedest, transaction_date,sender_account,receiver_account,ip_address_sender,fraud_transaction
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING FraudTransaction_id;
+    """
+    values = (
+        data['transactionid'], data['tansactiontype'],
+        data['oldbalanceorg'], data['newbalanceorig'],
+        data['oldbalancedest'], data['newbalancedest'], data['transaction_date'], data['sender_account'], data['receiver_account'], data['ip_address_sender'], data['fraud_transaction']
+    )
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(query,values)
+                trans_id = cursor.fetchone()['fraudtransaction_id']
+        return jsonify({'fraud_transaction_id': fraud_transaction_id}), 201
+    except Exception as e:
+        return {"error": str(e)}, 500
+
 #Case CRUD
 
 @app.route("/api/case/openCase", methods=["POST"])
@@ -126,19 +168,6 @@ def addFraudAccount():
 
 # Model apis 
 
-transaction_fraud_detection = pickle.load(open('transaction_fraud_detection.pkl','rb'))
-@app.route('/api/model/fraudTransactionPrediction',methods=['POST','GET'])
-def transactionPrediction():
-    data = request.get_json()
-    array_data = data.get('array_data', [])
-    array_data_2d = np.array(array_data).reshape(1, -1)
-    # [step	amount,	oldbalanceOrg,	newbalanceOrig,	oldbalanceDest,	newbalanceDest,	orig_diff,	dest_diff,	surge,	freq_dest,	type__CASH_IN,	type__CASH_OUT,	type__DEBIT,	type__PAYMENT,	type__TRANSFER,	customers_org,	customers_des]
-    prediction = transaction_fraud_detection.predict_proba(array_data_2d)
-    output = '{0:.{1}f}'.format(prediction[0][1],2)
-    if output == 0:
-        return("Not Fraud")
-    else:
-        return("Fraud")
 
 Fraud_account_detection = pickle.load(open('Fraud_account_detection.pkl','rb'))
 @app.route('/api/model/fraudAccountPrediction',methods=['POST','GET'])
