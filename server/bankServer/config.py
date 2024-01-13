@@ -1,8 +1,9 @@
+# config.py
 
 DB_CONFIG = {
-     'dbname': 'postgres',
+    'dbname': 'Bank_data',
     'user': 'postgres',
-    'password': '',
+    'password': 'sakshi',
     'host': 'localhost',
-    'port': 5432
+    'port': '5432',
 }
