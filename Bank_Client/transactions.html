@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Transactions Form</title>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <a class="navbar-brand text-white" href="index.html">[Name]</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link text-white" href="index.html">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="contactus.html">Contact Us</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="about.html">About Us</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="#">Notifications</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="profile.html">
+                        <i class="fas fa-user-circle"></i> Profile
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container mt-5">
+        <h1 class="text-success">Transactions Form</h1>
+        <form action="#" class="custom-form-style" method="post">
+            <div class="form-group">
+                <label for="transactionID">Transaction ID:</label>
+                <input type="text" class="form-control" id="transactionID" name="transactionID" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="transactionType">Transaction Type:</label>
+                    <select class="form-control" id="transactionType" name="transactionType" required>
+                        <option value="Option1">UPI</option>
+                        <option value="Option2">Credit Card</option>
+                        <option value="Option3">Net Banking</option>
+                    </select>
+                </div>
+
+                <div class="form-group col-md-6">
+                    <label for="amount">Amount:</label>
+                    <input type="number" class="form-control" id="amount" name="amount" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="transactionDate">Transaction Date:</label>
+                <input type="date" class="form-control" id="transactionDate" name="transactionDate" required>
+            </div>
+
+            <div class="form-group">
+                <label for="fromAccountID">From Account ID:</label>
+                <input type="text" class="form-control" id="fromAccountID" name="fromAccountID" required>
+            </div>
+
+            <div class="form-group">
+                <label for="toAccountID">To Account ID:</label>
+                <input type="text" class="form-control" id="toAccountID" name="toAccountID" required>
+            </div>
+
+            <!-- UPI Details -->
+            <div id="upiDetails" style="display:none;">
+                <div class="form-group">
+                    <label for="upiID">UPI ID:</label>
+                    <input type="text" class="form-control" id="upiID" name="upiID" required>
+                </div>
+            </div>
+
+            <!-- Credit Card Details -->
+            <div id="creditCardDetails" style="display:none;">
+                <div class="form-group">
+                    <label for="creditCardNumber">Credit Card Number:</label>
+                    <input type="text" class="form-control" id="creditCardNumber" name="creditCardNumber" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success">Submit</button>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $('#transactionType').change(function () {
+                var selectedValue = $(this).val();
+
+                // Hide divs first
+                $('#upiDetails').hide();
+                $('#creditCardDetails').hide();
+
+                // Show the specific detail div based on selected transaction type
+                if (selectedValue === 'Option1') { // UPI
+                    $('#upiDetails').show();
+                } else if (selectedValue === 'Option2') { // Credit Card
+                    $('#creditCardDetails').show();
+                }
+            });
+        });
+    </script>
+
+</body>
+
+</html>
