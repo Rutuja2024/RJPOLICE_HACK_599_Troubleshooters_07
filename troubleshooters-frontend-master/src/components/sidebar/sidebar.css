@@ -1,0 +1,21 @@
+.side-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 23rem;
+  align-items: flex-start;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  /* border-radius: 10px; */
+  background-color: #2d3250;
+  /* background-color: #001524; */
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+.items {
+  display: flex;
+  align-items: center;
+  /* justify-content: center; */
+}
+.logout {
+  align-items: center;
+}

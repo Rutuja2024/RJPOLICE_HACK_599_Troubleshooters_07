@@ -1,0 +1,35 @@
+* {
+  overflow: hidden;
+}
+.main-div {
+  display: flex;
+  flex-direction: row;
+}
+.profile {
+  width: 250px;
+  height: 150px;
+  border-radius: 8px;
+}
+
+.profile-div {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.profile-main {
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  border-radius: 10px;
+}
+.chart {
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  border-radius: 10px;
+}
+.transactions-div {
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  border-radius: 10px;
+}
+.transactions {
+  overflow-y: scroll;
+  height: 300px;
+}

@@ -1,0 +1,57 @@
+.main-div {
+  display: flex;
+  flex-direction: row;
+}
+
+.side-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 23rem;
+  align-items: flex-start;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  /* border-radius: 10px; */
+  background-color: #2d3250;
+  /* background-color: #001524; */
+}
+.items {
+  display: flex;
+  align-items: center;
+  /* justify-content: center; */
+}
+.logout {
+  align-items: center;
+}
+.accounts {
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  border-radius: 10px;
+}
+.report {
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  border-radius: 10px;
+}
+.accounts-listed {
+  overflow: scroll;
+  overflow-x: hidden;
+  height: 350px;
+}
+
+.fraud {
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  border-radius: 10px;
+}
+.chart {
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  border-radius: 10px;
+}
+.noti,.report {
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  border-radius: 10px;
+}
+.middle-div {
+  min-width: 50%;
+}
+.noti-list {
+  overflow: scroll;
+  overflow-x: hidden;
+  height: 400px;
+}
