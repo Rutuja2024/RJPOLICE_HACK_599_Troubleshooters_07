@@ -63,27 +63,52 @@ def adminLogin():
     except Exception as e:
         return {"error": str(e)}, 500
 
-#Fraud transaction detection api
-transaction_fraud_detection = pickle.load(open('transaction_fraud_detection.pkl','rb'))
-@app.route('/api/model/fraudTransactionPrediction',methods=['POST','GET'])
-def transactionPrediction():
-    data = request.get_json()
-    array_data = data.get('array_data', [])
-    array_data_2d = np.array(array_data).reshape(1, -1)
-    # [step	amount,	oldbalanceOrg,	newbalanceOrig,	oldbalanceDest,	newbalanceDest,	orig_diff,	dest_diff,	surge,	freq_dest,	type__CASH_IN,	type__CASH_OUT,	type__DEBIT,	type__PAYMENT,	type__TRANSFER,	customers_org,	customers_des]
-    prediction = transaction_fraud_detection.predict_proba(array_data_2d)
-    output = '{0:.{1}f}'.format(prediction[0][1],2)
-    if output == 0:
-        
-        return("Not Fraud")
-    else:
-        return("Fraud")
+#calculating diff function
+def balance_diff(data):
+    #Sender's balance
+    orig_change=data['newbalanceOrig']-data['oldbalanceOrg']
+    orig_change=orig_change.astype(int)
+    data['orig_txn_diff']=round(data['amount']+orig_change,2)
+    data['orig_txn_diff']=round(data['amount']-orig_change,2)
+    data['orig_txn_diff']=data['orig_txn_diff'].astype(int)
+    data['orig_diff'] = [1 if n !=0 else 0 for n in data['orig_txn_diff']] 
+    
+    #Receiver's balance
+    dest_change=data['newbalanceDest']-data['oldbalanceDest']
+    dest_change=dest_change.astype(int)
+    data['dest_txn_diff']=round(data['amount']+dest_change,2)
+    data['dest_txn_diff']=round(data['amount']-dest_change,2)
+    data['dest_txn_diff']=data['dest_txn_diff'].astype(int)
+    data['dest_diff'] = [1 if n !=0 else 0 for n in data['dest_txn_diff']] 
 
+    data = data.pop("orig_txn_diff")
+    data = data.pop("orig_txn_diff")
+    
+    return(data)
+
+#Surge indicator
+def surge_indicator(data):
+    data['surge']=[1 if n>450000 else 0 for n in data['amount']]
+    return(data)
 
 #Save transaction to system database
 @app.route('/api/insertSystemTransactions', methods=['POST'])
-def create_fraud_transaction():
+def saveTransaction():
     data = request.get_json()
+    transaction_fraud_detection = pickle.load(open('transaction_fraud_detection.pkl','rb'))
+    # [step, amount,	oldbalanceOrg,	newbalanceOrig,	oldbalanceDest,	newbalanceDest,	orig_diff,	dest_diff,	surge,	freq_dest,	type__CASH_IN,	type__CASH_OUT,	type__DEBIT,	type__PAYMENT,	type__TRANSFER,	customers_org,	customers_des]
+    model_data = [1]
+    model_data.append(data['sender_account'])
+    model_data.append(data['oldbalanceorg'])
+    model_data.append(data['newbalanceorig'])
+    model_data.append(data['oldbalancedest'])
+    model_data.append(data['newbalancedest'])
+    M_data = balance_diff(data)
+    model_data.append(M_data['orig_diff'])
+    model_data.append(M_data['dest_diff'])
+    M_data = surge_indicator(M_data)
+    model_data.append(M_data['surge'])
+    frequency_indicator_query = """SELECT COUNT(*) AS row_count FROM system_transaction WHERE receiver_account = %s;"""
     query = """
         INSERT INTO system_transaction (
             transactionid, tansactiontype, oldbalanceorg,
@@ -91,19 +116,47 @@ def create_fraud_transaction():
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING FraudTransaction_id;
     """
-    values = (
-        data['transactionid'], data['tansactiontype'],
-        data['oldbalanceorg'], data['newbalanceorig'],
-        data['oldbalancedest'], data['newbalancedest'], data['transaction_date'], data['sender_account'], data['receiver_account'], data['ip_address_sender'], data['fraud_transaction']
-    )
     try:
         with connection:
             with connection.cursor() as cursor:
+                cursor.execute(frequency_indicator_query,data['receiver_account'])
+                f_count = cursor.fetchone()[0]
+                model_data.append(f_count)
+                array_data_2d = np.array(model_data).reshape(1, -1)
+                prediction = transaction_fraud_detection.predict_proba(array_data_2d)
+                output = '{0:.{1}f}'.format(prediction[0][1],2)
+                if output == 0:
+                    data['fraud_transaction'] = True
+                else:
+                    data['fraud_transaction'] = False
+                values = (data['transactionid'], data['tansactiontype'],data['oldbalanceorg'], data['newbalanceorig'],data['oldbalancedest'],data['newbalancedest'], data['transaction_date'], data['sender_account'], data['receiver_account'], data['ip_address_sender'],data['fraud_transaction'])
                 cursor.execute(query,values)
                 trans_id = cursor.fetchone()['fraudtransaction_id']
-        return jsonify({'fraud_transaction_id': fraud_transaction_id}), 201
+                #Database notification
+                #User sms notification
+        if trans_id :
+            #check if the transaction is fraud
+            return jsonify({'fraud_transaction_id': fraud_transaction_id}), 201
+        else :
+            return ("Error")
     except Exception as e:
         return {"error": str(e)}, 500
+
+# #Fraud transaction detection api
+# transaction_fraud_detection = pickle.load(open('transaction_fraud_detection.pkl','rb'))
+# @app.route('/api/model/fraudTransactionPrediction',methods=['POST','GET'])
+# def transactionPrediction():
+#     data = request.get_json()
+#     array_data = data.get('array_data', [])
+#     array_data_2d = np.array(array_data).reshape(1, -1)
+#     # [step	amount,	oldbalanceOrg,	newbalanceOrig,	oldbalanceDest,	newbalanceDest,	orig_diff,	dest_diff,	surge,	freq_dest,	type__CASH_IN,	type__CASH_OUT,	type__DEBIT,	type__PAYMENT,	type__TRANSFER,	customers_org,	customers_des]
+#     prediction = transaction_fraud_detection.predict_proba(array_data_2d)
+#     output = '{0:.{1}f}'.format(prediction[0][1],2)
+#     if output == 0:
+        
+#         return("Not Fraud")
+#     else:
+#         return("Fraud")
 
 #Case CRUD
 
