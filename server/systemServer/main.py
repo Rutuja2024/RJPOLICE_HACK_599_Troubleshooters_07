@@ -28,6 +28,18 @@ SELECT_FRAUD_ACC = ("SELECT * FROM fraudaccounts WHERE customer_id = %s;")
 
 INSERT_FRAUD_ACC = ("INSERT INTO fraudaccounts (customer_id,first_name,last_name,account_balance,age,address,mobileno,addharno,lastlogin,branchid,account_type,emailid,upi_id,account_number,pancard_number,city) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);")
 
+SELECT_TRANSACTION = ("SELECT id, username FROM users WHERE username = %s AND password = %s; ")
+
+FREQUENCY_INDICATOR_QUERY = """SELECT COUNT(*) AS row_count FROM system_transaction WHERE receiver_account = %s;"""
+
+INSERT_TRANSACTION = """
+    INSERT INTO system_transaction (
+        transactionid, tansactiontype, oldbalanceorg,
+        newbalanceorig, oldbalancedest, newbalancedest, transaction_date,sender_account,receiver_account,ip_address_sender,fraud_transaction
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    RETURNING FraudTransaction_id;
+"""
+
 @app.route('/')
 def hello_world():
     return 'Hello, World!'
@@ -108,39 +120,96 @@ def saveTransaction():
     model_data.append(M_data['dest_diff'])
     M_data = surge_indicator(M_data)
     model_data.append(M_data['surge'])
-    frequency_indicator_query = """SELECT COUNT(*) AS row_count FROM system_transaction WHERE receiver_account = %s;"""
-    query = """
-        INSERT INTO system_transaction (
-            transactionid, tansactiontype, oldbalanceorg,
-            newbalanceorig, oldbalancedest, newbalancedest, transaction_date,sender_account,receiver_account,ip_address_sender,fraud_transaction
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING FraudTransaction_id;
-    """
     try:
         with connection:
             with connection.cursor() as cursor:
-                cursor.execute(frequency_indicator_query,data['receiver_account'])
+                cursor.execute(FREQUENCY_INDICATOR_QUERY,data['receiver_account'])
                 f_count = cursor.fetchone()[0]
                 model_data.append(f_count)
                 array_data_2d = np.array(model_data).reshape(1, -1)
                 prediction = transaction_fraud_detection.predict_proba(array_data_2d)
                 output = '{0:.{1}f}'.format(prediction[0][1],2)
                 if output == 0:
-                    data['fraud_transaction'] = True
-                else:
                     data['fraud_transaction'] = False
+                else:
+                    data['fraud_transaction'] = True
                 values = (data['transactionid'], data['tansactiontype'],data['oldbalanceorg'], data['newbalanceorig'],data['oldbalancedest'],data['newbalancedest'], data['transaction_date'], data['sender_account'], data['receiver_account'], data['ip_address_sender'],data['fraud_transaction'])
-                cursor.execute(query,values)
-                trans_id = cursor.fetchone()['fraudtransaction_id']
-                #Database notification
-                #User sms notification
+                cursor.execute(INSERT_TRANSACTION,values)
+                trans_id = cursor.fetchone()['transactionid']
+
+                if output != 0:
+                    #Database notification
+                    message = "Fraud Transaction Detected!"
+                    cursor.execute("""INSERT INTO Notification (Message, Type, Transaction_id , Customer_id ) VALUES (%s, %s, %s, %s);""",(message, 'Fraud_Transaction', trans_id, data['sender_account']))
+
+                    #User sms notification
+
+                
         if trans_id :
             #check if the transaction is fraud
-            return jsonify({'fraud_transaction_id': fraud_transaction_id}), 201
+            return jsonify({'transaction_id': trans_id}), 201
         else :
             return ("Error")
     except Exception as e:
         return {"error": str(e)}, 500
+
+
+# API endpoint to create a new notification
+@app.route('/api/notification/create', methods=['POST'])
+def create_notification():
+    try:
+        conn = psycopg2.connect(**DB_CONFIG2)
+        cursor = conn.cursor()
+
+        data = request.get_json()
+
+        if 'fraud_transaction_id' in data:
+            fraud_transaction_id = data['fraud_transaction_id']
+
+            # Check if fraud_transaction_id exists in FraudTransactions table
+            cursor.execute("SELECT 1 FROM FraudTransactions WHERE FraudTransaction_id = %s;", (fraud_transaction_id,))
+            if not cursor.fetchone():
+                return jsonify({'error': 'Invalid fraud_transaction_id. Not found in FraudTransactions table'}), 400
+
+            message = "Fraud transaction detected"
+            fraud_account_id = None  
+
+        elif 'fraud_account_id' in data:  
+           fraud_account_id = data['fraud_account_id']
+
+    # Check if fraud_account_id exists in FraudAccounts table
+           cursor.execute("SELECT 1 FROM FraudAccounts WHERE fraudaccount_id = %s;", (fraud_account_id,))
+           if not cursor.fetchone():
+               return jsonify({'error': 'Invalid fraud_account_id. Not found in FraudAccounts table'}), 400
+
+           message = "Fraud account detected"
+           fraud_transaction_id = None 
+
+        else:
+            return jsonify({'error': 'Invalid request. Specify either fraud_transaction_id or fraud_account_id'}), 400
+
+        # Insert new notification into the Notifications table
+        cursor.execute("""
+            INSERT INTO Notifications (Message, Type, FraudTransaction_id, FraudAccount_id)
+            VALUES (%s, %s, %s, %s);
+        """, (message, data.get('type'), fraud_transaction_id, fraud_account_id))
+
+        # Commit the transaction
+        conn.commit()
+
+        return jsonify({'message': 'Notification created successfully'})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        # Close database connection
+        try:
+          if conn:
+            conn.close()
+        except UnboundLocalError:
+          pass
+
 
 # #Fraud transaction detection api
 # transaction_fraud_detection = pickle.load(open('transaction_fraud_detection.pkl','rb'))
